@@ -3,6 +3,7 @@ From stdpp Require Import options.
 
 Local Set Universe Polymorphism.
 Local Unset Universe Minimization ToSet.
+Local Set Primitive Projections.
 
 (** Telescopes *)
 Cumulative Inductive tele : Type :=
@@ -33,21 +34,27 @@ Definition tele_fold {X Y} {TT : tele} (step : ∀ {A : Type}, (A → Y) → Y) 
      end) TT.
 Global Arguments tele_fold {_ _ !_} _ _ _ /.
 
+(** A duplication of the type [sigT] to avoid any connection to other universes
+ *)
+Record tS [X : Type] (f : X -> Type) : Type :=
+  { head : X;
+    rest : f head }.
+
 (** A sigma-like type for an "element" of a telescope, i.e. the data it
   takes to get a [T] from a [TT -t> T]. *)
 Fixpoint tele_arg@{u} (t : tele@{u}) : Type@{u} :=
   match t with
   | TeleO => unit
-  | TeleS f => { x : _ & tele_arg (f x) }
+  | TeleS f => tS (fun x => tele_arg (f x))
   end.
-Global Arguments tele_arg !_.
+Global Arguments tele_arg _ : simpl never.
 Notation TargO := tt (only parsing).
-Notation TargS a b := (@existT _ _ a b) (only parsing).
+Notation TargS a b := (@Build_tS _ (fun x => tele_arg (_ x)) a b) (only parsing).
 
 Fixpoint tele_app {TT : tele} {U} : (TT -t> U) -> tele_arg TT → U :=
   match TT as TT return (TT -t> U) -> tele_arg TT → U with
   | TeleO => λ F _, F
-  | @TeleS X b => λ (F : TeleS b -t> U) '(@existT _ _ x b), (* b x -t> U *)
+  | @TeleS X b => λ (F : TeleS b -t> U) '(Build_tS _ _ x b), (* b x -t> U *)
       tele_app (F x) b
   end.
 (* The bidirectionality hint [&] simplifies defining tele_app-based notation
@@ -66,13 +73,13 @@ Local Coercion tele_app : tele_fun >-> Funclass.
 Lemma tele_arg_inv@{u+} {TT : tele@{u}} (a : tele_arg@{u} TT) :
   match TT as TT return tele_arg@{u} TT → Prop with
   | TeleO => λ a, a = tt
-  | @TeleS t f => λ a, ∃ x a', a = @existT t _ x a'
+  | @TeleS t f => λ a, ∃ x a', a = {| head := x ; rest := a' |}
   end a.
 Proof. destruct TT; destruct a; eauto. Qed.
 Lemma tele_arg_O_inv (a : TeleO) : a = ().
 Proof. exact (tele_arg_inv a). Qed.
 Lemma tele_arg_S_inv {X} {f : X → tele} (a : TeleS f) :
-  ∃ x a', a = @existT _ _ x a'.
+  ∃ x a', a = {| head := x ; rest := a' |}.
 Proof. exact (tele_arg_inv a). Qed.
 
 (** Map below a tele_fun *)
@@ -105,7 +112,7 @@ Fixpoint tele_bind {U} {TT : tele} : (tele_arg TT → U) → TT -t> U :=
   match TT as TT return (tele_arg TT → U) → TT -t> U with
   | TeleO => λ F, F tt
   | @TeleS X b => λ (F : tele_arg (TeleS b) → U) (x : X), (* b x -t> U *)
-      tele_bind (λ a, F (existT x a))
+      tele_bind (λ a, F {| head := x ; rest := a |})
   end.
 Global Arguments tele_bind {_ !_} _ /.
 
