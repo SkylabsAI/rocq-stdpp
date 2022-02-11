@@ -5,7 +5,7 @@ Local Set Universe Polymorphism.
 Local Unset Universe Minimization ToSet.
 
 (** Telescopes *)
-Inductive tele : Type :=
+Cumulative Inductive tele : Type :=
   | TeleO : tele
   | TeleS {X} (binder : X → tele) : tele.
 
