@@ -2,6 +2,7 @@ From stdpp Require Import base tactics.
 From stdpp Require Import options.
 
 Local Set Universe Polymorphism.
+Local Unset Universe Minimization ToSet.
 
 (** Telescopes *)
 Inductive tele : Type :=
@@ -34,17 +35,21 @@ Global Arguments tele_fold {_ _ !_} _ _ _ /.
 
 (** A sigma-like type for an "element" of a telescope, i.e. the data it
   takes to get a [T] from a [TT -t> T]. *)
-Inductive tele_arg : tele → Type :=
-| TargO : tele_arg TeleO
-(* the [x] is the only relevant data here *)
-| TargS {X} {binder} (x : X) : tele_arg (binder x) → tele_arg (TeleS binder).
+Fixpoint tele_arg@{u} (t : tele@{u}) : Type@{u} :=
+  match t with
+  | TeleO => unit
+  | TeleS f => { x : _ & tele_arg (f x) }
+  end.
+Global Arguments tele_arg !_.
+Notation TargO := tt (only parsing).
+Notation TargS a b := (@existT _ _ a b) (only parsing).
 
-Definition tele_app {TT : tele} {T} (f : TT -t> T) : tele_arg TT → T :=
-  λ a, (fix rec {TT} (a : tele_arg TT) : (TT -t> T) → T :=
-     match a in tele_arg TT return (TT -t> T) → T with
-     | TargO => λ t : T, t
-     | TargS x a => λ f, rec a (f x)
-     end) TT a f.
+Fixpoint tele_app {TT : tele} {U} : (TT -t> U) -> tele_arg TT → U :=
+  match TT as TT return (TT -t> U) -> tele_arg TT → U with
+  | TeleO => λ F _, F
+  | @TeleS X b => λ (F : TeleS b -t> U) '(@existT _ _ x b), (* b x -t> U *)
+      tele_app (F x) b
+  end.
 (* The bidirectionality hint [&] simplifies defining tele_app-based notation
 such as the atomic updates and atomic triples in Iris. *)
 Global Arguments tele_app {!_ _} & _ !_ /.
@@ -53,17 +58,21 @@ Coercion tele_arg : tele >-> Sortclass.
 (* This is a local coercion because otherwise, the "λ.." notation stops working. *)
 Local Coercion tele_app : tele_fun >-> Funclass.
 
-(** Inversion lemma for [tele_arg] *)
-Lemma tele_arg_inv {TT : tele} (a : TT) :
-  match TT as TT return TT → Prop with
-  | TeleO => λ a, a = TargO
-  | TeleS f => λ a, ∃ x a', a = TargS x a'
+(** Inversion lemma for [tele_arg]
+    Note the explicit universe annotation prevents this from being minimized
+    to [Set]. The + is needed to satisfy a bug in Coq, the resulting definition
+    only requires a single universe.
+ *)
+Lemma tele_arg_inv@{u+} {TT : tele@{u}} (a : tele_arg@{u} TT) :
+  match TT as TT return tele_arg@{u} TT → Prop with
+  | TeleO => λ a, a = tt
+  | @TeleS t f => λ a, ∃ x a', a = @existT t _ x a'
   end a.
-Proof. induction a; eauto. Qed.
-Lemma tele_arg_O_inv (a : TeleO) : a = TargO.
+Proof. destruct TT; destruct a; eauto. Qed.
+Lemma tele_arg_O_inv (a : TeleO) : a = ().
 Proof. exact (tele_arg_inv a). Qed.
 Lemma tele_arg_S_inv {X} {f : X → tele} (a : TeleS f) :
-  ∃ x a', a = TargS x a'.
+  ∃ x a', a = @existT _ _ x a'.
 Proof. exact (tele_arg_inv a). Qed.
 
 (** Map below a tele_fun *)
@@ -76,11 +85,12 @@ Fixpoint tele_map {T U} {TT : tele} : (T → U) → (TT -t> T) → TT -t> U :=
 Global Arguments tele_map {_ _ !_} _ _ /.
 
 Lemma tele_map_app {T U} {TT : tele} (F : T → U) (t : TT -t> T) (x : TT) :
-  (tele_map F t) x = F (t x).
+  tele_app (tele_map F t) x = F (tele_app t x).
 Proof.
   induction TT as [|X f IH]; simpl in *.
   - rewrite (tele_arg_O_inv x). done.
   - destruct (tele_arg_S_inv x) as [x' [a' ->]]. simpl.
+    unfold tele_app.
     rewrite <-IH. done.
 Qed.
 
@@ -91,11 +101,11 @@ Lemma tele_fmap_app {T U} {TT : tele} (F : T → U) (t : TT -t> T) (x : TT) :
 Proof. apply tele_map_app. Qed.
 
 (** Operate below [tele_fun]s with argument telescope [TT]. *)
-Fixpoint tele_bind {U} {TT : tele} : (TT → U) → TT -t> U :=
-  match TT as TT return (TT → U) → TT -t> U with
-  | TeleO => λ F, F TargO
-  | @TeleS X b => λ (F : TeleS b → U) (x : X), (* b x -t> U *)
-                  tele_bind (λ a, F (TargS x a))
+Fixpoint tele_bind {U} {TT : tele} : (tele_arg TT → U) → TT -t> U :=
+  match TT as TT return (tele_arg TT → U) → TT -t> U with
+  | TeleO => λ F, F tt
+  | @TeleS X b => λ (F : tele_arg (TeleS b) → U) (x : X), (* b x -t> U *)
+      tele_bind (λ a, F (existT x a))
   end.
 Global Arguments tele_bind {_ !_} _ /.
 
