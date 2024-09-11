@@ -194,7 +194,7 @@ Qed.
 
 Lemma size_union X Y : X ## Y → size (X ∪ Y) = size X + size Y.
 Proof.
-  intros. unfold size, set_size. simpl. rewrite <-length_app.
+  intros. unfold size, set_size. simpl. rewrite <-app_length.
   apply Permutation_length, NoDup_Permutation.
   - apply NoDup_elements.
   - apply NoDup_app; repeat split; try apply NoDup_elements.
@@ -345,7 +345,7 @@ Lemma set_fold_comm_acc {B} (f : A → B → B) (g : B → B) (b : B) X :
 Proof. intros. apply (set_fold_comm_acc_strong _); [solve_proper|auto]. Qed.
 
 (** * Minimal elements *)
-Lemma minimal_exists_elem_of R `{!Transitive R, ∀ x y, Decision (R x y)} (X : C) :
+Lemma minimal_exists R `{!Transitive R, ∀ x y, Decision (R x y)} (X : C) :
   X ≢ ∅ → ∃ x, x ∈ X ∧ minimal R x X.
 Proof.
   pattern X; apply set_ind; clear X.
@@ -361,20 +361,10 @@ Proof.
   exists x; split; [set_solver|].
   rewrite HX, (right_id _ (∪)). apply singleton_minimal.
 Qed.
-Lemma minimal_exists_elem_of_L R `{!LeibnizEquiv C, !Transitive R,
+Lemma minimal_exists_L R `{!LeibnizEquiv C, !Transitive R,
     ∀ x y, Decision (R x y)} (X : C) :
   X ≠ ∅ → ∃ x, x ∈ X ∧ minimal R x X.
-Proof. unfold_leibniz. apply (minimal_exists_elem_of R). Qed.
-
-Lemma minimal_exists R `{!Transitive R,
-    ∀ x y, Decision (R x y)} `{!Inhabited A} (X : C) :
-  ∃ x, minimal R x X.
-Proof.
-  destruct (set_choose_or_empty X) as [ (y & Ha) | Hne].
-  - edestruct (minimal_exists_elem_of R X) as (x & Hel & Hmin); first set_solver.
-    exists x. done.
-  - exists inhabitant. intros y Hel. set_solver.
-Qed.
+Proof. unfold_leibniz. apply (minimal_exists R). Qed.
 
 (** * Filter *)
 Lemma elem_of_filter (P : A → Prop) `{!∀ x, Decision (P x)} X x :
@@ -711,7 +701,7 @@ Section infinite.
     Forall_fresh X xs → Y ⊆ X → Forall_fresh Y xs.
   Proof. rewrite !Forall_fresh_alt; set_solver. Qed.
 
-  Lemma length_fresh_list n X : length (fresh_list n X) = n.
+  Lemma fresh_list_length n X : length (fresh_list n X) = n.
   Proof. revert X. induction n; simpl; auto. Qed.
   Lemma fresh_list_is_fresh n X x : x ∈ fresh_list n X → x ∉ X.
   Proof.
@@ -736,5 +726,5 @@ Lemma size_set_seq `{FinSet nat C} start len :
 Proof.
   rewrite <-list_to_set_seq, size_list_to_set.
   2:{ apply NoDup_seq. }
-  rewrite length_seq. done.
+  rewrite seq_length. done.
 Qed.

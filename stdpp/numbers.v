@@ -165,8 +165,7 @@ Module Nat.
 
   Global Instance divide_dec : RelDecision Nat.divide.
   Proof.
-    refine (λ x y, cast_if (decide (lcm x y = y)));
-      abstract (by rewrite Nat.divide_lcm_iff).
+    refine (λ x y, cast_if (decide (lcm x y = y))); by rewrite Nat.divide_lcm_iff.
   Defined.
   Global Instance divide_po : PartialOrder divide.
   Proof.
@@ -340,7 +339,7 @@ Module Pos.
 
   Fixpoint length (p : positive) : nat :=
     match p with 1 => 0%nat | p~0 | p~1 => S (length p) end.
-  Lemma length_app p1 p2 : length (p1 ++ p2) = (length p2 + length p1)%nat.
+  Lemma app_length p1 p2 : length (p1 ++ p2) = (length p2 + length p1)%nat.
   Proof. by induction p2; f_equal/=. Qed.
 
   Lemma lt_sum (x y : positive) : x < y ↔ ∃ z, y = x + z.
@@ -1019,7 +1018,7 @@ Module Qp.
   Global Instance eq_dec : EqDecision Qp.
   Proof.
     refine (λ p q, cast_if (decide (Qp_to_Qc p = Qp_to_Qc q)));
-      abstract (by rewrite <-to_Qc_inj_iff).
+      by rewrite <-to_Qc_inj_iff.
   Defined.
 
   Definition add (p q : Qp) : Qp :=
@@ -1064,13 +1063,13 @@ Module Qp.
   Global Instance le_dec : RelDecision le.
   Proof.
     refine (λ p q, cast_if (decide (Qp_to_Qc p ≤ Qp_to_Qc q)%Qc));
-      abstract (by rewrite to_Qc_inj_le).
-  Defined.
+      by rewrite to_Qc_inj_le.
+  Qed.
   Global Instance lt_dec : RelDecision lt.
   Proof.
     refine (λ p q, cast_if (decide (Qp_to_Qc p < Qp_to_Qc q)%Qc));
-      abstract (by rewrite to_Qc_inj_lt).
-  Defined.
+      by rewrite to_Qc_inj_lt.
+  Qed.
   Global Instance lt_pi p q : ProofIrrel (lt p q).
   Proof. destruct p, q; apply _. Qed.
 
