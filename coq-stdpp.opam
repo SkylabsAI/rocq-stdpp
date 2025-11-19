@@ -37,5 +37,16 @@ depends: [
   "rocq-stdlib" { = "dev" }
 ]
 
-build: ["./make-package" "stdpp" "-j%{jobs}%"]
-install: ["./make-package" "stdpp" "install"]
+build: [
+  [
+    "dune"
+    "build"
+    "-p"
+    name
+    "-j"
+    jobs
+    "@install"
+    "@runtest" {with-test}
+    "@doc" {with-doc}
+  ]
+]

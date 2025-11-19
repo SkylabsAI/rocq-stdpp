@@ -22,5 +22,16 @@ depends: [
   "coq-stdpp" {= version}
 ]
 
-build: ["./make-package" "stdpp_bitvector" "-j%{jobs}%"]
-install: ["./make-package" "stdpp_bitvector" "install"]
+build: [
+  [
+    "dune"
+    "build"
+    "-p"
+    name
+    "-j"
+    jobs
+    "@install"
+    "@runtest" {with-test}
+    "@doc" {with-doc}
+  ]
+]
