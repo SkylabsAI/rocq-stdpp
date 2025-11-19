@@ -21,5 +21,16 @@ depends: [
   "rocq-stdpp-bitvector" {= version}
 ]
 
-build: ["./make-package" "stdpp_unstable" "-j%{jobs}%"]
-install: ["./make-package" "stdpp_unstable" "install"]
+build: [
+  [
+    "dune"
+    "build"
+    "-p"
+    name
+    "-j"
+    jobs
+    "@install"
+    "@runtest" {with-test}
+    "@doc" {with-doc}
+  ]
+]
